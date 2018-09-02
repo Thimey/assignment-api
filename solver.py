@@ -3,7 +3,7 @@ import json
 from collections import namedtuple
 from ortools.constraint_solver import pywrapcp
 
-from utils import same_time, group_task_by_time_overlap, group_task_by_scheduled_task, map_to_indicies
+from utils import same_time, group_task_by_time_overlap, group_task_by_scheduled_task, map_to_indicies, map_to_id
 
 Task = namedtuple('Task', ['id', 'task_id', 'qty_n', 'start_time', 'end_time', 'index'])
 Worker_task = namedtuple('Worker_task', ['worker', 'task', 'index'])
@@ -11,7 +11,6 @@ Worker_task = namedtuple('Worker_task', ['worker', 'task', 'index'])
 min_num_allocations_per_worker = 3
 
 def solver(data):
-    print('solving for', data)
     # load data to allocate
     # data = get_data('./data.json')
 
@@ -19,6 +18,7 @@ def solver(data):
     solver = pywrapcp.Solver("allocations")
 
     tasks = get_tasks(data['scheduledTasks'])
+    print('tasks', tasks)
     workers = data['workers']
 
     num_tasks = len(tasks)
@@ -46,6 +46,8 @@ def solver(data):
 
     # a worker cannot work on two tasks that are on at the same time
     grouped_task_time = map_to_indicies(group_task_by_time_overlap(tasks))
+    print('grouped_task_time', grouped_task_time)
+    # print('grouped_task_time', map_to_id(group_task_by_time_overlap(tasks)))
 
     [solver.Add(solver.Sum(assignments[i][j] for j in task_date_indicies) <= 1)
     for task_date_indicies in grouped_task_time
@@ -73,15 +75,28 @@ def solver(data):
 
     status = solver.Solve(db, [collector])
     print("Time:", solver.WallTime(), "ms")
-    print('status', status)
+
 
     if status:
+        solution = {}
         for i in range(num_workers):
             for j in range(num_tasks):
                 if collector.Value(0, assignments[i][j]) == 1:
-                    print('Worker ', i, ' assigned to task ', j)
+                    workerTask = assignments_ref[i][j]
+                    if workerTask.task.id in solution:
+                        solution[workerTask.task.id] = [*solution[workerTask.task.id], workerTask.worker['id']]
+                    else:
+                        solution[workerTask.task.id] = [workerTask.worker['id']]
 
-    return status
+        return {
+            "status": status,
+            "solution": solution
+        }
+
+    return {
+        "status": status,
+        "solution": None
+    }
 
 
 def assemble_solution():

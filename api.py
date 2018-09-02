@@ -12,9 +12,7 @@ def solve_allocation():
 
     solution = solver(data)
 
-    return jsonify({
-        "solved": solution
-    })
+    return jsonify(solution)
 
 if __name__ == '__main__':
     app.run(debug=True)

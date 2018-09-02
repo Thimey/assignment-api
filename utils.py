@@ -4,8 +4,15 @@ def time_in_mins(time):
 def time_in_range(time, start_range, end_range):
     return (time_in_mins(start_range) < time_in_mins(time) < time_in_mins(end_range))
 
+def exactly_same_range(task1, task2):
+    return (
+        time_in_mins(task1.start_time) == time_in_mins(task2.start_time) and
+        time_in_mins(task1.end_time) == time_in_mins(task2.end_time)
+    )
+
 def same_time(task1, task2):
     return (
+        exactly_same_range(task1, task2) or
         time_in_range(task1.start_time, task2.start_time, task2.end_time) or
         time_in_range(task1.end_time, task2.start_time, task2.end_time) or
         time_in_range(task2.start_time, task1.start_time, task1.end_time) or
@@ -24,7 +31,8 @@ def group_tasks(tasks, predicate):
         if not group_matched:
             grouped_tasks.append([task])
 
-    return grouped_tasks
+    # remove any groups with only one task
+    return [g for g in grouped_tasks if len(g) > 1]
 
 
 def all_tasks_share_scheduled_id(task, tasks):
@@ -41,3 +49,6 @@ def group_task_by_scheduled_task(tasks):
 
 def map_to_indicies(task_groups):
     return [[t.index for t in tg] for tg in task_groups]
+
+def map_to_id(task_groups):
+    return [[t.id for t in tg] for tg in task_groups]
