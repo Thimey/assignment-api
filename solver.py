@@ -3,19 +3,22 @@ import json
 from collections import namedtuple
 from ortools.constraint_solver import pywrapcp
 
-Task = namedtuple('Task', ['id', 'qty_n', 'date', 'index'])
+from utils import same_time, group_task_by_time_overlap, group_task_by_scheduled_task, map_to_indicies
+
+Task = namedtuple('Task', ['id', 'task_id', 'qty_n', 'start_time', 'end_time', 'index'])
 Worker_task = namedtuple('Worker_task', ['worker', 'task', 'index'])
 
 min_num_allocations_per_worker = 3
 
-def main():
+def solver(data):
+    print('solving for', data)
     # load data to allocate
-    data = get_data('./data.json')
+    # data = get_data('./data.json')
 
     # initialise solver
     solver = pywrapcp.Solver("allocations")
 
-    tasks = get_tasks(data['orderTasks'])
+    tasks = get_tasks(data['scheduledTasks'])
     workers = data['workers']
 
     num_tasks = len(tasks)
@@ -41,20 +44,18 @@ def main():
     # works must be assigned to at least n tasks (this could change later per worker)
     # [solver.Add(solver.Sum(assignments[i][j] for j in range(num_tasks)) >= 3) for i in range(num_workers)]
 
-    # a worker cannot work on two tasks that are on the same day
-    get_group_task_date = get_group_task_fn(lambda t: t.date)
-    grouped_task_date = get_group_task_date(tasks)
+    # a worker cannot work on two tasks that are on at the same time
+    grouped_task_time = map_to_indicies(group_task_by_time_overlap(tasks))
 
     [solver.Add(solver.Sum(assignments[i][j] for j in task_date_indicies) <= 1)
-    for task_date_indicies in grouped_task_date
+    for task_date_indicies in grouped_task_time
     for i in range(num_workers)]
 
     # a worker can at most be assigned to the same orderTask date once (i.e cannot take up multiple qty)
-    get_group_task_date_id = get_group_task_fn(lambda t: f'{str(t.id)}_{t.date}')
-    grouped_task_date_id = get_group_task_date_id(tasks)
+    grouped_scheduled_task = map_to_indicies(group_task_by_scheduled_task(tasks))
 
     [solver.Add(solver.Sum(assignments[i][j] for j in task_date_indicies) <= 1)
-    for task_date_indicies in grouped_task_date_id
+    for task_date_indicies in grouped_scheduled_task
     for i in range(num_workers)]
 
     assignments_flat = [assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]
@@ -66,7 +67,7 @@ def main():
         solver.ASSIGN_MIN_VALUE
     )
 
-    # Create solution colector
+    # Create solution collector
     collector = solver.FirstSolutionCollector()
     collector.Add(assignments_flat)
 
@@ -80,37 +81,28 @@ def main():
                 if collector.Value(0, assignments[i][j]) == 1:
                     print('Worker ', i, ' assigned to task ', j)
 
+    return status
 
 
+def assemble_solution():
+    pass
 
-
-
-def get_group_task_fn(group_fn):
-    """
-        returns a groupby function that groups in list of indicies list using supplied fn
-    """
-    def get_group_task(tasks):
-        group_tasks = {}
-
-        for task in tasks:
-            key = group_fn(task)
-            if key in group_tasks:
-                group_tasks[key].append(task.index)
-            else:
-                group_tasks[key] = [task.index]
-
-        return list(group_tasks.values())
-
-    return get_group_task
-
-def get_tasks(order_tasks):
+def get_tasks(scheduled_tasks):
     tasks = []
     index = 0
-    for order_task in order_tasks:
-        for qty in range(1, order_task['qty'] + 1):
-            for date in order_task['dates']:
-                tasks.append(Task(order_task['id'], qty, date, index))
-                index += 1
+    for scheduled_task in scheduled_tasks:
+        for qty in range(1, scheduled_task['task']['qty'] + 1):
+            tasks.append(
+                Task(
+                    scheduled_task['id'],
+                    scheduled_task['task']['id'],
+                    qty,
+                    scheduled_task['startTime'],
+                    scheduled_task['endTime'],
+                    index
+                )
+            )
+            index += 1
 
     return tasks
 
@@ -125,4 +117,4 @@ def get_data(file_path):
     return data
 
 if __name__ == "__main__":
-    main()
+    solver()

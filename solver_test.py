@@ -1,7 +1,7 @@
 import unittest
-from .poc1 import Task, get_group_task_date
+from .solver import Task, get_group_task_date
 
-class TestAssignmentPOC1(unittest.TestCase):
+class TestSolver(unittest.TestCase):
     def test_get_group_task_date(self):
         tasks = [
             Task(0, 1, '2018-03-03', 0),

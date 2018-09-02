@@ -49,21 +49,22 @@
             "name": "amy"
         }
     ],
-    "orderTasks": [
+    "scheduledTasks": [
         {
-            "id": 0,
-            "qty": 2,
-            "dates": ["2018-03-03", "2018-02-03"]
-        },
-        {
-            "id": 1,
-            "qty": 2,
-            "dates": ["2018-03-03"]
-        },
-        {
-            "id": 2,
-            "qty": 2,
-            "dates": ["2018-03-03"]
+          "id": "4105cf8b-365f-4f6e-9e95-fc695ad0fba4",
+          "task": {
+              "id": 0,
+              "name": "Mario Kart (4p)",
+              "qty": 4
+          },
+          "startTime": {
+            "hour": 9,
+            "min": 15
+          },
+          "endTime": {
+            "hour": 9,
+            "min": 45
+          }
         }
     ]
 }
