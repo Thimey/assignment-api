@@ -11,30 +11,41 @@ Worker_task = namedtuple('Worker_task', ['worker', 'task', 'index'])
 min_num_allocations_per_worker = 3
 
 def solver(data):
-    # load data to allocate
-    # data = get_data('./data.json')
-
     # initialise solver
     solver = pywrapcp.Solver("allocations")
 
     tasks = get_tasks(data['scheduledTasks'])
-    print('tasks', tasks)
+    cost_matrix = data['costMatrix']
     workers = data['workers']
 
     num_tasks = len(tasks)
     num_workers = len(workers)
 
     # declare decision variables and a reference matrix
+    assignment_costs = []
     assignments = []
     assignments_ref = []
     for index, worker in enumerate(workers):
         worker_assignments = []
         worker_assignments_ref = []
+        worker_assignment_costs = []
         for task in tasks:
             worker_assignments.append(solver.IntVar(0, 1, f'worker: , task: {task.id}'))
             worker_assignments_ref.append(Worker_task(worker, task, index))
+            worker_assignment_costs.append(cost_matrix[str(worker['id'])][task.id])
         assignments.append(worker_assignments)
         assignments_ref.append(worker_assignments_ref)
+        assignment_costs.append(worker_assignment_costs)
+
+
+    # objective
+    total_cost = solver.IntVar(0, 1000, "total_cost")
+
+    solver.Add(
+        total_cost == solver.Sum(
+            [assignment_costs[i][j] * assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]))
+
+    objective = solver.Minimize(total_cost, 1)
 
     # constraints
 
@@ -46,18 +57,16 @@ def solver(data):
 
     # a worker cannot work on two tasks that are on at the same time
     grouped_task_time = map_to_indicies(group_task_by_time_overlap(tasks))
-    print('grouped_task_time', grouped_task_time)
-    # print('grouped_task_time', map_to_id(group_task_by_time_overlap(tasks)))
 
-    [solver.Add(solver.Sum(assignments[i][j] for j in task_date_indicies) <= 1)
-    for task_date_indicies in grouped_task_time
+    [solver.Add(solver.Sum(assignments[i][j] for j in task_time_indexes) <= 1)
+    for task_time_indexes in grouped_task_time
     for i in range(num_workers)]
 
     # a worker can at most be assigned to the same orderTask date once (i.e cannot take up multiple qty)
     grouped_scheduled_task = map_to_indicies(group_task_by_scheduled_task(tasks))
 
-    [solver.Add(solver.Sum(assignments[i][j] for j in task_date_indicies) <= 1)
-    for task_date_indicies in grouped_scheduled_task
+    [solver.Add(solver.Sum(assignments[i][j] for j in task_scheduled_indexes) <= 1)
+    for task_scheduled_indexes in grouped_scheduled_task
     for i in range(num_workers)]
 
     assignments_flat = [assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]
@@ -70,13 +79,15 @@ def solver(data):
     )
 
     # Create solution collector
-    collector = solver.FirstSolutionCollector()
+    collector = solver.BestValueSolutionCollector(False)
     collector.Add(assignments_flat)
+    collector.AddObjective(total_cost)
 
-    status = solver.Solve(db, [collector])
+    status = solver.Solve(db, [objective, collector])
     print("Time:", solver.WallTime(), "ms")
+    print('status', status)
 
-
+    # If solution found, collect all assignments
     if status:
         solution = {}
         for i in range(num_workers):
@@ -132,4 +143,4 @@ def get_data(file_path):
     return data
 
 if __name__ == "__main__":
-    solver()
+    solver(get_data('./data.json'))
