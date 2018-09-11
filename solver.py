@@ -17,6 +17,10 @@ def solver(data):
     tasks = get_tasks(data['scheduledTasks'])
     cost_matrix = data['costMatrix']
     workers = data['workers']
+    solver_option = data['solverOption']
+    time_limit = data['timeLimit']
+
+    print('solver_option', solver_option)
 
     num_tasks = len(tasks)
     num_workers = len(workers)
@@ -39,13 +43,16 @@ def solver(data):
 
 
     # objective
+
     total_cost = solver.IntVar(0, 1000, "total_cost")
 
     solver.Add(
         total_cost == solver.Sum(
             [assignment_costs[i][j] * assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]))
 
-    objective = solver.Minimize(total_cost, 1)
+    # Only add objective if optimisation requested
+    if solver_option != 'noOptimisation':
+        objective = solver.Minimize(total_cost, 1)
 
     # constraints
 
@@ -74,16 +81,33 @@ def solver(data):
     # Create the decision builder.
     db = solver.Phase(
         assignments_flat,
-        solver.CHOOSE_FIRST_UNBOUND,
+        solver.CHOOSE_MIN_SIZE_LOWEST_MIN,
         solver.ASSIGN_MIN_VALUE
     )
 
-    # Create solution collector
-    collector = solver.BestValueSolutionCollector(False)
-    collector.Add(assignments_flat)
-    collector.AddObjective(total_cost)
+    # Create solution collector depending on solver option requested
+    if solver_option != 'noOptimisation':
+        collector = solver.BestValueSolutionCollector(False)
+    else:
+        collector = solver.FirstSolutionCollector()
 
-    status = solver.Solve(db, [objective, collector])
+    # Add decision vars to collector
+    collector.Add(assignments_flat)
+
+    # Set time limit if given
+    if solver_option == 'optimise' and time_limit != None:
+        solver_time_limit = solver.TimeLimit(time_limit * 60 * 1000)
+
+    # Solve appropriately
+    if solver_option == 'optimal':
+        collector.AddObjective(total_cost)
+        status = solver.Solve(db, [objective, collector])
+    elif solver_option == 'optimise' and time_limit != None:
+        collector.AddObjective(total_cost)
+        status = solver.Solve(db, [objective, collector, solver_time_limit])
+    else:
+        status = solver.Solve(db, [collector])
+
     print("Time:", solver.WallTime(), "ms")
     print('status', status)
 
@@ -99,14 +123,18 @@ def solver(data):
                     else:
                         solution[workerTask.task.id] = [workerTask.worker['id']]
 
+        objective_value = get_non_optimised_cost(cost_matrix, solution) if solver_option == 'noOptimisation' else collector.ObjectiveValue(0)
+
         return {
             "status": status,
-            "solution": solution
+            "solution": solution,
+            "objectiveValue": objective_value
         }
 
     return {
         "status": status,
-        "solution": None
+        "solution": None,
+        "objectiveValue": None
     }
 
 
@@ -132,8 +160,17 @@ def get_tasks(scheduled_tasks):
 
     return tasks
 
-def get_cost(worker, task):
-    return 30
+def get_non_optimised_cost(cost_matrix, solution):
+    total = 0
+
+    for task_id, workers in solution.items():
+        task_cost = 0
+        for worker_id in workers:
+            task_cost += cost_matrix[str(worker_id)][task_id]
+        total += task_cost
+
+    return total
+
 
 def get_data(file_path):
     data_file = open(file_path, 'r')
