@@ -4,6 +4,7 @@ from collections import namedtuple
 from ortools.constraint_solver import pywrapcp
 
 from utils import same_time, group_task_by_time_overlap, group_task_by_scheduled_task, map_to_indicies, map_to_id
+from constraints import Constraints
 
 Task = namedtuple('Task', ['id', 'task_id', 'qty_n', 'start_time', 'end_time', 'index'])
 Worker_task = namedtuple('Worker_task', ['worker', 'task', 'index'])
@@ -19,6 +20,7 @@ def solver(data):
     workers = data['workers']
     solver_option = data['solverOption']
     time_limit = data['timeLimit']
+    extra_constraints = data['constraints'] if 'constraints' in data else {}
 
     print('solver_option', solver_option)
 
@@ -41,6 +43,13 @@ def solver(data):
         assignments_ref.append(worker_assignments_ref)
         assignment_costs.append(worker_assignment_costs)
 
+    constraints = Constraints(
+        tasks,
+        workers,
+        assignment_costs,
+        assignments,
+        assignments_ref,
+    )
 
     # objective
 
@@ -57,28 +66,35 @@ def solver(data):
     # constraints
 
     # each task assigned to exactly one worker
-    [solver.Add(solver.Sum(assignments[i][j] for i in range(num_workers)) == 1) for j in range(num_tasks)]
+    constraints.addOneWorkerOneTask(solver)
+
+    # a worker cannot work on two tasks that are on at the same time
+    constraints.addSameWorkerSameTaskTime(solver)
+
+    # a worker can at most be assigned to the same orderTask date once (i.e cannot take up multiple qty)
+    constraints.addSameTaskQtyOnce(solver)
+
+    # add any cannot work constraints
+    if 'cannotWork' in extra_constraints:
+        constraints.mustOrCannotWorkTask(solver, extra_constraints['cannotWork'], 0)
+
+    # add any must work constraints
+    if 'mustWork' in extra_constraints:
+        constraints.mustOrCannotWorkTask(solver, extra_constraints['mustWork'], 1)
+
+    # add total fatigue constraints
+
+    # add consecutive fatigue constaints
+
+    # add unavailable time constraints
 
     # works must be assigned to at least n tasks (this could change later per worker)
     # [solver.Add(solver.Sum(assignments[i][j] for j in range(num_tasks)) >= 3) for i in range(num_workers)]
 
-    # a worker cannot work on two tasks that are on at the same time
-    grouped_task_time = map_to_indicies(group_task_by_time_overlap(tasks))
-
-    [solver.Add(solver.Sum(assignments[i][j] for j in task_time_indexes) <= 1)
-    for task_time_indexes in grouped_task_time
-    for i in range(num_workers)]
-
-    # a worker can at most be assigned to the same orderTask date once (i.e cannot take up multiple qty)
-    grouped_scheduled_task = map_to_indicies(group_task_by_scheduled_task(tasks))
-
-    [solver.Add(solver.Sum(assignments[i][j] for j in task_scheduled_indexes) <= 1)
-    for task_scheduled_indexes in grouped_scheduled_task
-    for i in range(num_workers)]
-
-    assignments_flat = [assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]
 
     # Create the decision builder.
+    assignments_flat = [assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]
+
     db = solver.Phase(
         assignments_flat,
         solver.CHOOSE_MIN_SIZE_LOWEST_MIN,
@@ -96,6 +112,7 @@ def solver(data):
 
     # Set time limit if given
     if solver_option == 'optimise' and time_limit != None:
+        print('time_limit', time_limit)
         solver_time_limit = solver.TimeLimit(time_limit * 60 * 1000)
 
     # Solve appropriately
