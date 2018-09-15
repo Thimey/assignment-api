@@ -69,18 +69,17 @@ def solver(data):
     constraints.addOneWorkerOneTask(solver)
 
     # a worker cannot work on two tasks that are on at the same time
-    constraints.addSameWorkerSameTaskTime(solver)
+    constraints.add_same_worker_same_task_time(solver)
 
     # a worker can at most be assigned to the same orderTask date once (i.e cannot take up multiple qty)
-    constraints.addSameTaskQtyOnce(solver)
+    # maybe add any cannot work constraints
+    # maybe add any must work constraints
+    must_map = extra_constraints['mustWork'] if 'mustWork' in extra_constraints else None
+    cannot_map = extra_constraints['cannotWork'] if 'cannotWork' in extra_constraints else None
 
-    # add any cannot work constraints
-    if 'cannotWork' in extra_constraints:
-        constraints.mustOrCannotWorkTask(solver, extra_constraints['cannotWork'], 0)
+    print(must_map, cannot_map)
 
-    # add any must work constraints
-    if 'mustWork' in extra_constraints:
-        constraints.mustOrCannotWorkTask(solver, extra_constraints['mustWork'], 1)
+    constraints.add_same_task_qty(solver, must_map, cannot_map)
 
     # add total fatigue constraints
 

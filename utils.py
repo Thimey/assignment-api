@@ -32,7 +32,8 @@ def group_tasks(tasks, predicate):
             grouped_tasks.append([task])
 
     # remove any groups with only one task
-    return [g for g in grouped_tasks if len(g) > 1]
+    # return [g for g in grouped_tasks if len(g) > 1]
+    return grouped_tasks
 
 
 def all_tasks_share_scheduled_id(task, tasks):
