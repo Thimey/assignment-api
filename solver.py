@@ -76,12 +76,16 @@ def solver(data):
     # maybe add any must work constraints
     must_map = extra_constraints['mustWork'] if 'mustWork' in extra_constraints else None
     cannot_map = extra_constraints['cannotWork'] if 'cannotWork' in extra_constraints else None
-
-    print(must_map, cannot_map)
-
     constraints.add_same_task_qty(solver, must_map, cannot_map)
 
-    # add total fatigue constraints
+    # add at least has to work constraint
+    if 'atLeastWork' in extra_constraints:
+        constraints.add_at_least_work_task(solver, extra_constraints['atLeastWork'])
+
+    # add total time fatigue constraints
+    if 'timeFatigueTotal' in extra_constraints:
+        constraints.add_time_fatigue_total(solver, extra_constraints['timeFatigueTotal'])
+
 
     # add consecutive fatigue constaints
 

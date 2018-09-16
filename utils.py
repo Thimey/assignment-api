@@ -19,6 +19,11 @@ def same_time(task1, task2):
         time_in_range(task2.end_time, task1.start_time, task1.end_time)
     )
 
+def getTaskDuration(task):
+    return (
+        time_in_mins(task.end_time) - time_in_mins(task.start_time)
+    )
+
 def group_tasks(tasks, predicate):
     grouped_tasks = []
     for task in tasks:
@@ -39,6 +44,9 @@ def group_tasks(tasks, predicate):
 def all_tasks_share_scheduled_id(task, tasks):
     return all([t.id == task.id for t in tasks])
 
+def all_tasks_share_task_id(task, tasks):
+    return all([t.task_id == task.task_id for t in tasks])
+
 def all_tasks_share_time(task, tasks):
     return all([same_time(t, task) for t in tasks])
 
@@ -47,6 +55,9 @@ def group_task_by_time_overlap(tasks):
 
 def group_task_by_scheduled_task(tasks):
     return group_tasks(tasks, all_tasks_share_scheduled_id)
+
+def group_task_by_task(tasks):
+    return group_tasks(tasks, all_tasks_share_task_id)
 
 def map_to_indicies(task_groups):
     return [[t.index for t in tg] for tg in task_groups]
