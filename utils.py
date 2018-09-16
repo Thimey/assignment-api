@@ -19,7 +19,7 @@ def same_time(task1, task2):
         time_in_range(task2.end_time, task1.start_time, task1.end_time)
     )
 
-def getTaskDuration(task):
+def get_task_duration(task):
     return (
         time_in_mins(task.end_time) - time_in_mins(task.start_time)
     )

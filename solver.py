@@ -86,6 +86,9 @@ def solver(data):
     if 'timeFatigueTotal' in extra_constraints:
         constraints.add_time_fatigue_total(solver, extra_constraints['timeFatigueTotal'])
 
+    # add total overall time fatigue constraints
+    if 'overallTimeFatigueTotal' in extra_constraints:
+        constraints.add_overall_total_fatigue_time(solver, extra_constraints['overallTimeFatigueTotal'])
 
     # add consecutive fatigue constaints
 
@@ -133,27 +136,37 @@ def solver(data):
 
     # If solution found, collect all assignments
     if status:
-        solution = {}
+        solution_by_task = {}
+        solution_by_worker = {}
         for i in range(num_workers):
             for j in range(num_tasks):
                 if collector.Value(0, assignments[i][j]) == 1:
                     workerTask = assignments_ref[i][j]
-                    if workerTask.task.id in solution:
-                        solution[workerTask.task.id] = [*solution[workerTask.task.id], workerTask.worker['id']]
-                    else:
-                        solution[workerTask.task.id] = [workerTask.worker['id']]
+                    # Group solution by worker and task
 
-        objective_value = get_non_optimised_cost(cost_matrix, solution) if solver_option == 'noOptimisation' else collector.ObjectiveValue(0)
+                    if workerTask.task.id in solution_by_task:
+                        solution_by_task[workerTask.task.id] = [*solution_by_task[workerTask.task.id], workerTask.worker['id']]
+                    else:
+                        solution_by_task[workerTask.task.id] = [workerTask.worker['id']]
+
+                    if workerTask.worker['id'] in solution_by_worker:
+                        solution_by_worker[workerTask.worker['id']] = [*solution_by_worker[workerTask.worker['id']], workerTask.task.id]
+                    else:
+                        solution_by_worker[workerTask.worker['id']] = [workerTask.task.id]
+
+        objective_value = get_non_optimised_cost(cost_matrix, solution_by_task) if solver_option == 'noOptimisation' else collector.ObjectiveValue(0)
 
         return {
             "status": status,
-            "solution": solution,
+            "solutionByTask": solution_by_task,
+            "solutionByWorker": solution_by_worker,
             "objectiveValue": objective_value
         }
 
     return {
         "status": status,
-        "solution": None,
+        "solutionByTask": None,
+        "solutionByWorker": None,
         "objectiveValue": None
     }
 

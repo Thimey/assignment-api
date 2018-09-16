@@ -1,5 +1,5 @@
 import unittest
-from utils import same_time, group_task_by_scheduled_task, group_task_by_time_overlap
+from utils import same_time, group_task_by_scheduled_task, group_task_by_time_overlap, get_task_duration
 
 from collections import namedtuple
 Task = namedtuple('Task', ['id', 'start_time', 'end_time'])
@@ -74,6 +74,16 @@ class TestUtils(unittest.TestCase):
         ])
 
         self.assertListEqual(expected_group, grouped)
+
+    def test_get_task_duration(self):
+        task = Task('1', { "hour": 12, "min": 30 }, { "hour": 12, "min": 45 })
+        task2 = Task('1', { "hour": 12, "min": 30 }, { "hour": 13, "min": 00 })
+
+        duration1 = get_task_duration(task)
+        duration2 = get_task_duration(task2)
+
+        self.assertEqual(duration1, 15)
+        self.assertEqual(duration2, 30)
 
     def test_group_task_by_scheduled_task(self):
         task1 = Task('1', { "hour": 12, "min": 30 }, { "hour": 13, "min": 30 })

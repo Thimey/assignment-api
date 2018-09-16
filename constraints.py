@@ -1,5 +1,5 @@
 
-from utils import group_task_by_time_overlap, group_task_by_scheduled_task, group_task_by_task, map_to_indicies, getTaskDuration
+from utils import group_task_by_time_overlap, group_task_by_scheduled_task, group_task_by_task, map_to_indicies, get_task_duration
 
 class Constraints():
     def __init__(
@@ -66,6 +66,9 @@ class Constraints():
                     solver.Add(solver.Sum(self.assignments[i][task.index] for task in task_scheduled_group) <= 1)
 
     def add_at_least_work_task(self, solver, at_least_map):
+        """
+            This constraint ensures that workers work at least on task in the given map
+        """
         grouped_task = group_task_by_task(self.tasks)
 
         for i in range(self.num_workers):
@@ -106,6 +109,22 @@ class Constraints():
 
                         solver.Add(
                             solver.Sum(
-                                self.assignments[i][task.index] * getTaskDuration(task)
+                                self.assignments[i][task.index] * get_task_duration(task)
                                     for task in task_scheduled_group
                                         if task.task_id in tasks_for_limit) <= limit)
+
+
+    def add_overall_total_fatigue_time(self, solver, overall_map):
+        """
+            This constraint ensures workers work below a given limit overall for all their allocated tasks
+        """
+        for i in range(self.num_workers):
+            worker = self.workers[i]
+            worker_id_str = str(worker['id'])
+            if worker_id_str in overall_map:
+                limit = overall_map[worker_id_str]['limit']
+                for j in range(self.num_workers):
+                    print(get_task_duration(self.assignments_ref[i][j].task))
+                solver.Add(
+                    solver.Sum(self.assignments[i][j] * get_task_duration(self.assignments_ref[i][j].task)
+                        for j in range(self.num_tasks)) <= limit)
