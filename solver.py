@@ -3,13 +3,36 @@ import json
 from collections import namedtuple
 from ortools.constraint_solver import pywrapcp
 
+
+
 from utils import same_time, group_task_by_time_overlap, group_task_by_scheduled_task, map_to_indicies, map_to_id
 from constraints import Constraints
 
-Task = namedtuple('Task', ['id', 'task_id', 'qty_n', 'start_time', 'end_time', 'index'])
+Task = namedtuple('Task', ['id', 'task_id', 'qty', 'start_time', 'end_time', 'index'])
 Worker_task = namedtuple('Worker_task', ['worker', 'task', 'index'])
 
 min_num_allocations_per_worker = 3
+
+class SearchMonitor(pywrapcp.SearchMonitor):
+    def __init__(self, solver, assignments, num_tasks, num_workers):
+        pywrapcp.SearchMonitor.__init__(self, solver)
+        self.assignments = assignments
+        self.num_tasks = num_tasks
+        self.num_workers = num_workers
+
+
+    def AcceptSolution(self):
+        print('Accepting solution')
+        assignment_vals = [self.assignments[i][j].Value() for i in range(self.num_workers) for j in range(self.num_tasks)]
+
+        print('assignment_vals', assignment_vals)
+
+        return True
+
+    def AcceptDelta(self, delta):
+        print('delta', delta)
+
+        return True
 
 def solver(data):
     # initialise solver
@@ -65,8 +88,8 @@ def solver(data):
 
     # constraints
 
-    # each task assigned to exactly one worker
-    constraints.addOneWorkerOneTask(solver)
+    # each task assigned it's given qty
+    constraints.addTaskQtyConstraint(solver)
 
     # a worker cannot work on two tasks that are on at the same time
     constraints.add_same_worker_same_task_time(solver)
@@ -121,6 +144,9 @@ def solver(data):
         print('time_limit', time_limit)
         solver_time_limit = solver.TimeLimit(time_limit * 60 * 1000)
 
+    # Search monitor
+    monitor = SearchMonitor(solver, assignments, num_tasks, num_workers)
+
     # Solve appropriately
     if solver_option == 'optimal':
         collector.AddObjective(total_cost)
@@ -129,7 +155,7 @@ def solver(data):
         collector.AddObjective(total_cost)
         status = solver.Solve(db, [objective, collector, solver_time_limit])
     else:
-        status = solver.Solve(db, [collector])
+        status = solver.Solve(db, [collector, monitor])
 
     print("Time:", solver.WallTime(), "ms")
     print('status', status)
@@ -178,18 +204,17 @@ def get_tasks(scheduled_tasks):
     tasks = []
     index = 0
     for scheduled_task in scheduled_tasks:
-        for qty in range(1, scheduled_task['task']['qty'] + 1):
-            tasks.append(
-                Task(
-                    scheduled_task['id'],
-                    scheduled_task['task']['id'],
-                    qty,
-                    scheduled_task['startTime'],
-                    scheduled_task['endTime'],
-                    index
-                )
+        tasks.append(
+            Task(
+                scheduled_task['id'],
+                scheduled_task['task']['id'],
+                scheduled_task['task']['qty'],
+                scheduled_task['startTime'],
+                scheduled_task['endTime'],
+                index
             )
-            index += 1
+        )
+        index += 1
 
     return tasks
 

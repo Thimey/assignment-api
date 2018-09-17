@@ -24,6 +24,11 @@ class Constraints():
                 for j in range(self.num_tasks)]
 
 
+    def addTaskQtyConstraint(self, solver):
+        [solver.Add(solver.Sum(self.assignments[i][j]
+            for i in range(self.num_workers)) == self.tasks[j].qty)
+                for j in range(self.num_tasks)]
+
     def add_same_worker_same_task_time(self, solver):
         """
             This constraint ensures workers cannot be assigned to at most one task at an point in time
