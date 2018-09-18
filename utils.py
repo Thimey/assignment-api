@@ -24,21 +24,39 @@ def get_task_duration(task):
         time_in_mins(task.end_time) - time_in_mins(task.start_time)
     )
 
-def group_tasks(tasks, predicate):
-    grouped_tasks = []
-    for task in tasks:
-        group_matched = False
-        for index, task_group in enumerate(grouped_tasks):
-            if predicate(task, task_group):
-                group_matched = True
-                grouped_tasks[index] = [*task_group, task]
+# def group_tasks(tasks, predicate):
+#     grouped_tasks = [[t] for t in tasks]
+#     for index, task_group in enumerate(grouped_tasks):
+#         for task in tasks:
+#             # First one is base, dont compare itself
+#             head, *tail = task_group
+#             if task != head and predicate(task, task_group):
+#                 grouped_tasks[index] = [*task_group, task]
 
-        if not group_matched:
-            grouped_tasks.append([task])
+#     # remove any groups with only one task
+#     return [g for g in grouped_tasks if len(g) > 1]
+
+
+def already_have(potential, groups):
+    for g in groups:
+        if set([t.id for t in g]) == set([t.id for t in potential]):
+            return True
+
+    return False
+
+
+
+def group_tasks(tasks, predicate):
+    grouped_tasks = [[t] for t in tasks]
+    for task in tasks:
+        for index, task_group in enumerate(grouped_tasks):
+            if task not in task_group and predicate(task, task_group):
+                new_group = [*task_group, task]
+                if not already_have(new_group, grouped_tasks):
+                    grouped_tasks.append(new_group)
 
     # remove any groups with only one task
-    # return [g for g in grouped_tasks if len(g) > 1]
-    return grouped_tasks
+    return [g for g in grouped_tasks if len(g) > 1]
 
 
 def all_tasks_share_scheduled_id(task, tasks):

@@ -24,7 +24,7 @@ class Constraints():
                 for j in range(self.num_tasks)]
 
 
-    def addTaskQtyConstraint(self, solver):
+    def add_task_qty_constraint(self, solver):
         [solver.Add(solver.Sum(self.assignments[i][j]
             for i in range(self.num_workers)) == self.tasks[j].qty)
                 for j in range(self.num_tasks)]
@@ -45,30 +45,23 @@ class Constraints():
 
         return worker_id in map and task_id in map[worker_id]
 
-    def add_same_task_qty(self, solver, must_map, cannot_map):
+    def must_cannot_work(self, solver, must_map, cannot_map):
         """
-            This constraint ensures that workers assigned to tasks only one (1 / qty) and also obey forced must/cannot constraints
+            This constraint ensures that workers obey forced must/cannot constraints
         """
-        grouped_scheduled_task = group_task_by_scheduled_task(self.tasks)
-
         for i in range(self.num_workers):
-            for task_scheduled_group in grouped_scheduled_task:
-                # Each group will have same task, so use first one to get id
-                task_index = task_scheduled_group[0].index
-                worker_task = self.assignments_ref[i][task_index]
+            for j in range(self.num_tasks):
+                worker_task = self.assignments_ref[i][j]
 
                 worker_id_str = str(worker_task.worker['id'])
                 task_id_str = str(worker_task.task.task_id)
 
                 # if in must work, sum for task qty for use has to be 1
                 if self.worker_task_in_map(worker_id_str, task_id_str, must_map):
-                    solver.Add(solver.Sum(self.assignments[i][task.index] for task in task_scheduled_group) == 1)
+                    solver.Add(self.assignments[i][j] == 1)
                 # if in cannot work, sum for task qty for use has to be 0
                 elif self.worker_task_in_map(worker_id_str, task_id_str, cannot_map):
-                    solver.Add(solver.Sum(self.assignments[i][task.index] for task in task_scheduled_group) == 0)
-                # otherwise can be either
-                else:
-                    solver.Add(solver.Sum(self.assignments[i][task.index] for task in task_scheduled_group) <= 1)
+                    solver.Add(self.assignments[i][j] == 0)
 
     def add_at_least_work_task(self, solver, at_least_map):
         """
@@ -128,8 +121,6 @@ class Constraints():
             worker_id_str = str(worker['id'])
             if worker_id_str in overall_map:
                 limit = overall_map[worker_id_str]['limit']
-                for j in range(self.num_workers):
-                    print(get_task_duration(self.assignments_ref[i][j].task))
                 solver.Add(
                     solver.Sum(self.assignments[i][j] * get_task_duration(self.assignments_ref[i][j].task)
                         for j in range(self.num_tasks)) <= limit)

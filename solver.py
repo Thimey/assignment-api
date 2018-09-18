@@ -13,32 +13,12 @@ Worker_task = namedtuple('Worker_task', ['worker', 'task', 'index'])
 
 min_num_allocations_per_worker = 3
 
-class SearchMonitor(pywrapcp.SearchMonitor):
-    def __init__(self, solver, assignments, num_tasks, num_workers):
-        pywrapcp.SearchMonitor.__init__(self, solver)
-        self.assignments = assignments
-        self.num_tasks = num_tasks
-        self.num_workers = num_workers
-
-
-    def AcceptSolution(self):
-        print('Accepting solution')
-        assignment_vals = [self.assignments[i][j].Value() for i in range(self.num_workers) for j in range(self.num_tasks)]
-
-        print('assignment_vals', assignment_vals)
-
-        return True
-
-    def AcceptDelta(self, delta):
-        print('delta', delta)
-
-        return True
-
 def solver(data):
     # initialise solver
     solver = pywrapcp.Solver("allocations")
 
     tasks = get_tasks(data['scheduledTasks'])
+
     cost_matrix = data['costMatrix']
     workers = data['workers']
     solver_option = data['solverOption']
@@ -89,7 +69,7 @@ def solver(data):
     # constraints
 
     # each task assigned it's given qty
-    constraints.addTaskQtyConstraint(solver)
+    constraints.add_task_qty_constraint(solver)
 
     # a worker cannot work on two tasks that are on at the same time
     constraints.add_same_worker_same_task_time(solver)
@@ -99,7 +79,7 @@ def solver(data):
     # maybe add any must work constraints
     must_map = extra_constraints['mustWork'] if 'mustWork' in extra_constraints else None
     cannot_map = extra_constraints['cannotWork'] if 'cannotWork' in extra_constraints else None
-    constraints.add_same_task_qty(solver, must_map, cannot_map)
+    constraints.must_cannot_work(solver, must_map, cannot_map)
 
     # add at least has to work constraint
     if 'atLeastWork' in extra_constraints:
@@ -126,8 +106,8 @@ def solver(data):
 
     db = solver.Phase(
         assignments_flat,
-        solver.CHOOSE_MIN_SIZE_LOWEST_MIN,
-        solver.ASSIGN_MIN_VALUE
+        solver.CHOOSE_FIRST_UNBOUND,
+        solver.ASSIGN_MAX_VALUE
     )
 
     # Create solution collector depending on solver option requested
@@ -144,9 +124,6 @@ def solver(data):
         print('time_limit', time_limit)
         solver_time_limit = solver.TimeLimit(time_limit * 60 * 1000)
 
-    # Search monitor
-    monitor = SearchMonitor(solver, assignments, num_tasks, num_workers)
-
     # Solve appropriately
     if solver_option == 'optimal':
         collector.AddObjective(total_cost)
@@ -155,7 +132,7 @@ def solver(data):
         collector.AddObjective(total_cost)
         status = solver.Solve(db, [objective, collector, solver_time_limit])
     else:
-        status = solver.Solve(db, [collector, monitor])
+        status = solver.Solve(db, [collector])
 
     print("Time:", solver.WallTime(), "ms")
     print('status', status)
