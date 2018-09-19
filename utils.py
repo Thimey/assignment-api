@@ -82,3 +82,14 @@ def map_to_indicies(task_groups):
 
 def map_to_id(task_groups):
     return [[t.id for t in tg] for tg in task_groups]
+
+def findSchTaskByTaskId(id, seq):
+    return find(lambda t: t.task_id == id, seq)
+
+def find(f, seq):
+    """Return first item in sequence where f(item) == True."""
+    for item in seq:
+        if f(item):
+            return item
+
+    return None

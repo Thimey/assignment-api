@@ -1,5 +1,4 @@
-
-from utils import group_task_by_time_overlap, group_task_by_scheduled_task, group_task_by_task, map_to_indicies, get_task_duration
+import utils
 
 class Constraints():
     def __init__(
@@ -33,7 +32,7 @@ class Constraints():
         """
             This constraint ensures workers cannot be assigned to at most one task at an point in time
         """
-        grouped_task_time = map_to_indicies(group_task_by_time_overlap(self.tasks))
+        grouped_task_time = utils.map_to_indicies(utils.group_task_by_time_overlap(self.tasks))
 
         [solver.Add(solver.Sum(self.assignments[i][j] for j in task_time_indexes) <= 1)
             for task_time_indexes in grouped_task_time
@@ -67,7 +66,7 @@ class Constraints():
         """
             This constraint ensures that workers work at least on task in the given map
         """
-        grouped_task = group_task_by_task(self.tasks)
+        grouped_task = utils.group_task_by_task(self.tasks)
 
         for i in range(self.num_workers):
             for task_group in grouped_task:
@@ -85,31 +84,24 @@ class Constraints():
         """
             This constraint ensures that no worker can work more than a given limit for any number of tasks
         """
-        grouped_scheduled_task = group_task_by_scheduled_task(self.tasks)
-
         for i in range(self.num_workers):
-            for task_scheduled_group in grouped_scheduled_task:
-                # Each group will have same task, so use first one to get id
-                task_index = task_scheduled_group[0].index
-                worker_task = self.assignments_ref[i][task_index]
+            worker_id_str = str(self.workers[i]['id'])
 
-                worker_id_str = str(worker_task.worker['id'])
-                task_id_str = str(worker_task.task.task_id)
+            # if worker and task have time limit, add constraints
+            if worker_id_str in fatigue_total_map:
+                worker_total_fatigue_constraints = fatigue_total_map[worker_id_str]
 
-                # if worker and task have time limit, add constraints
-                if worker_id_str in fatigue_total_map:
-                    worker_total_fatigue_constraints = fatigue_total_map[worker_id_str]
+                # for every fatigue constraint, the decision var * time must be lower than limit
+                for total_fatigue in worker_total_fatigue_constraints:
+                    limit = total_fatigue['limit']
+                    task_ids_for_limit = total_fatigue['tasks']
+                    tasks_for_limit = [utils.findSchTaskByTaskId(id, self.tasks) for id in task_ids_for_limit]
 
-                    # for every fatigue constraint, the decision var * time must be lower than limit
-                    for total_fatigue in worker_total_fatigue_constraints:
-                        limit = total_fatigue['limit']
-                        tasks_for_limit = total_fatigue['tasks']
-
+                    for task_for_limit in tasks_for_limit:
                         solver.Add(
                             solver.Sum(
-                                self.assignments[i][task.index] * get_task_duration(task)
-                                    for task in task_scheduled_group
-                                        if task.task_id in tasks_for_limit) <= limit)
+                                self.assignments[i][task.index] * utils.get_task_duration(task)
+                                    for task in self.tasks if task.task_id == task_for_limit.task_id) <= limit)
 
 
     def add_overall_total_fatigue_time(self, solver, overall_map):
@@ -122,5 +114,5 @@ class Constraints():
             if worker_id_str in overall_map:
                 limit = overall_map[worker_id_str]['limit']
                 solver.Add(
-                    solver.Sum(self.assignments[i][j] * get_task_duration(self.assignments_ref[i][j].task)
+                    solver.Sum(self.assignments[i][j] * utils.get_task_duration(self.assignments_ref[i][j].task)
                         for j in range(self.num_tasks)) <= limit)
