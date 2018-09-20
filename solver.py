@@ -1,11 +1,11 @@
 import json
 
+import copy
 from collections import namedtuple
 from ortools.constraint_solver import pywrapcp
 
 
-
-from utils import same_time, group_task_by_time_overlap, group_task_by_scheduled_task, map_to_indicies, map_to_id
+from utils import same_time, group_task_by_time_overlap, map_to_indicies, map_to_id
 from constraints import Constraints
 
 Task = namedtuple('Task', ['id', 'task_id', 'qty', 'start_time', 'end_time', 'index'])
@@ -56,14 +56,15 @@ def solver(data):
 
     # objective
 
-    total_cost = solver.IntVar(0, 1000, "total_cost")
-
-    solver.Add(
-        total_cost == solver.Sum(
-            [assignment_costs[i][j] * assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]))
 
     # Only add objective if optimisation requested
     if solver_option != 'noOptimisation':
+        total_cost = solver.IntVar(0, 4000, "total_cost")
+
+        solver.Add(
+            total_cost == solver.Sum(
+                [assignment_costs[i][j] * assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]))
+
         objective = solver.Minimize(total_cost, 1)
 
     # constraints
@@ -102,7 +103,14 @@ def solver(data):
 
 
     # Create the decision builder.
-    assignments_flat = [assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]
+
+    # Want to sort the decision variables by least cost to the solution
+    assignment_ref_copy = copy.deepcopy(assignments_ref)
+    assignment_ref_copy_flat = [assignment_ref_copy[i][j] for i in range(num_workers) for j in range(num_tasks)]
+    # Sort by least cost
+    assignment_ref_copy_flat.sort(key=lambda wrk_tsk: cost_matrix[str(wrk_tsk.worker['id'])][wrk_tsk.task.id])
+    # map to assignment vars
+    assignments_flat = [assignments[ref.index][ref.task.index] for ref in assignment_ref_copy_flat]
 
     db = solver.Phase(
         assignments_flat,

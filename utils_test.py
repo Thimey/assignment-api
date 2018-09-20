@@ -1,5 +1,5 @@
 import unittest
-from utils import same_time, group_task_by_scheduled_task, group_task_by_time_overlap, get_task_duration
+from utils import same_time, group_task_by_time_overlap, get_task_duration
 
 from collections import namedtuple
 Task = namedtuple('Task', ['id', 'start_time', 'end_time'])

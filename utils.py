@@ -71,11 +71,15 @@ def all_tasks_share_time(task, tasks):
 def group_task_by_time_overlap(tasks):
     return group_tasks(tasks, all_tasks_share_time)
 
-def group_task_by_scheduled_task(tasks):
-    return group_tasks(tasks, all_tasks_share_scheduled_id)
-
 def group_task_by_task(tasks):
-    return group_tasks(tasks, all_tasks_share_task_id)
+    grouped_tasks = {}
+    for task in tasks:
+        if task.task_id in grouped_tasks:
+            grouped_tasks[task.task_id] = [*grouped_tasks[task.task_id], task]
+        else:
+            grouped_tasks[task.task_id] = [task]
+
+    return grouped_tasks.values()
 
 def map_to_indicies(task_groups):
     return [[t.index for t in tg] for tg in task_groups]

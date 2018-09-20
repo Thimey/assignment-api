@@ -71,14 +71,11 @@ class Constraints():
         for i in range(self.num_workers):
             for task_group in grouped_task:
                 # Each group will have same task, so use first one to get id
-                task_index = task_group[0].index
-                worker_task = self.assignments_ref[i][task_index]
-
-                worker_id_str = str(worker_task.worker['id'])
-                task_id_str = str(worker_task.task.task_id)
+                task_id_str = str(task_group[0].task_id)
+                worker_id_str = str(self.workers[i]['id'])
 
                 if self.worker_task_in_map(worker_id_str, task_id_str, at_least_map):
-                    solver.Add(solver.Sum(self.assignments[i][task.index] for task in task_group) == 1)
+                    solver.Add(solver.Sum(self.assignments[i][task.index] for task in task_group) >= 1)
 
     def add_time_fatigue_total(self, solver, fatigue_total_map):
         """
@@ -101,7 +98,9 @@ class Constraints():
                         solver.Add(
                             solver.Sum(
                                 self.assignments[i][task.index] * utils.get_task_duration(task)
-                                    for task in self.tasks if task.task_id == task_for_limit.task_id) <= limit)
+                                    for task in self.tasks if
+                                        (task_for_limit != None and task.task_id == task_for_limit.task_id)
+                                    ) <= limit)
 
 
     def add_overall_total_fatigue_time(self, solver, overall_map):
