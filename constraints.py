@@ -118,9 +118,12 @@ class Constraints():
 
 
     def add_overall_consecutive_total_fatigue_time(self, solver, overall_consecutive_map):
+        """
+            This constraint ensures that workers can not consecutively work more than limit given in overall_consecutive_map
+        """
         # Note: consecutive_map grouped by limit (15min increments) to reduce duplicate calculations
 
-        for limit_str, workers in overall_consecutive_map:
+        for limit_str, workers in overall_consecutive_map.items():
             limit = int(limit_str)
             # split tasks into ones that have duration over limit
             tasks_below_limit, tasks_over_limit = utils.split_task_by_duration_limit(self.tasks, limit)
@@ -136,4 +139,18 @@ class Constraints():
 
                 # Add constraint so that all tasks in a path cannot be assigned to worker
                 for path in consecutive_paths:
-                    [solver.Add(solver.Sum(self.assignments[worker_index][t.index]) < len(path)) for t in path]
+                    solver.Add(solver.Sum(self.assignments[worker_index][t.index] for t in path) < len(path))
+
+
+    def add_unavailability(self, solver, unavailability_map):
+        """
+            This map ensures that workers cannot work scheduled tasks within given time spans
+        """
+        for worker in self.workers:
+            if str(worker.id) in unavailability_map:
+                range = utils.get_range(unavailability_map[str(worker.id)]['range'])
+                tasks_in_range = utils.get_tasks_in_range(self.tasks, range)
+
+                for task in tasks_in_range:
+                    solver.Add(self.assignments[worker.index][task.index] == 0)
+

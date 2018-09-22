@@ -1,5 +1,46 @@
 from collections import namedtuple
 
+Task = namedtuple('Task', ['id', 'task_id', 'qty', 'start_time', 'end_time', 'index'])
+Worker = namedtuple('Worker', ['id', 'name', 'tags', 'index'])
+Range = namedtuple('Range', ['start_time', 'end_time'])
+
+def get_range(range):
+    return Range(range['startTime'], range['endTime'])
+
+def get_tasks(scheduled_tasks):
+    tasks = []
+    index = 0
+    for scheduled_task in scheduled_tasks:
+        tasks.append(
+            Task(
+                scheduled_task['id'],
+                scheduled_task['task']['id'],
+                scheduled_task['task']['qty'],
+                scheduled_task['startTime'],
+                scheduled_task['endTime'],
+                index
+            )
+        )
+        index += 1
+
+    return tasks
+
+def get_workers(given_workers):
+    workers = []
+    index = 0
+    for worker in given_workers:
+        workers.append(
+            Worker(
+                worker['id'],
+                worker['name'],
+                worker['tags'],
+                index
+            )
+        )
+        index += 1
+
+    return workers
+
 def time_in_mins(time):
     return (time['hour'] * 60) + time['min']
 
@@ -58,7 +99,6 @@ def already_have(potential, groups):
     return False
 
 
-
 def group_tasks(tasks, predicate):
     grouped_tasks = [[t] for t in tasks]
     for task in tasks:
@@ -71,6 +111,15 @@ def group_tasks(tasks, predicate):
     # remove any groups with only one task
     return [g for g in grouped_tasks if len(g) > 1]
 
+
+def get_tasks_in_range(tasks, range):
+    tasks_in_range = []
+
+    for task in tasks:
+        if same_time(task, range):
+            tasks_in_range.append(task)
+
+    return tasks_in_range
 
 def all_tasks_share_scheduled_id(task, tasks):
     return all([t.id == task.id for t in tasks])
@@ -139,6 +188,9 @@ def tasks_connect(task1, task2):
 Path = namedtuple('Path', ['total_time', 'path_tasks'])
 
 def consecutive_tasks_until_limit(initial_task, tasks_after, limit):
+    """
+        Given an initial task and all tasks same_time or after, get all consecutive paths up until limit reached
+    """
     completed_paths = []
     potential_paths = [
         Path(get_task_duration(initial_task), [initial_task])
@@ -193,7 +245,8 @@ def find_all_consecutive_paths(tasks, limit):
         paths_from_task = consecutive_tasks_until_limit(task, tasks_after, limit)
 
         if len(paths_from_task):
-            task_paths.append(paths_from_task)
+            for path in paths_from_task:
+                task_paths.append(path)
 
     return task_paths
 

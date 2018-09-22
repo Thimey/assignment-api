@@ -4,12 +4,9 @@ import copy
 from collections import namedtuple
 from ortools.constraint_solver import pywrapcp
 
-
-from utils import same_time, group_task_by_time_overlap, map_to_indicies, map_to_id
+import utils
 from constraints import Constraints
 
-Task = namedtuple('Task', ['id', 'task_id', 'qty', 'start_time', 'end_time', 'index'])
-Worker = namedtuple('Worker', ['id', 'name', 'tags', 'index'])
 Worker_task = namedtuple('Worker_task', ['worker', 'task'])
 
 min_num_allocations_per_worker = 3
@@ -18,8 +15,8 @@ def solver(data):
     # initialise solver
     solver = pywrapcp.Solver("allocations")
 
-    tasks = get_tasks(data['scheduledTasks'])
-    workers = get_workers(data['workers'])
+    tasks = utils.get_tasks(data['scheduledTasks'])
+    workers = utils.get_workers(data['workers'])
 
     cost_matrix = data['costMatrix']
     solver_option = data['solverOption']
@@ -100,6 +97,8 @@ def solver(data):
         constraints.add_overall_consecutive_total_fatigue_time(solver, extra_constraints['overallTimeFatigueConsecutive'])
 
     # add unavailable time constraints
+    if 'unavailable' in extra_constraints:
+        constraints.add_unavailability(solver, extra_constraints['unavailable'])
 
     # works must be assigned to at least n tasks (this could change later per worker)
     # [solver.Add(solver.Sum(assignments[i][j] for j in range(num_tasks)) >= 3) for i in range(num_workers)]
@@ -184,44 +183,6 @@ def solver(data):
         "solutionByWorker": None,
         "objectiveValue": None
     }
-
-
-def assemble_solution():
-    pass
-
-def get_tasks(scheduled_tasks):
-    tasks = []
-    index = 0
-    for scheduled_task in scheduled_tasks:
-        tasks.append(
-            Task(
-                scheduled_task['id'],
-                scheduled_task['task']['id'],
-                scheduled_task['task']['qty'],
-                scheduled_task['startTime'],
-                scheduled_task['endTime'],
-                index
-            )
-        )
-        index += 1
-
-    return tasks
-
-def get_workers(given_workers):
-    workers = []
-    index = 0
-    for worker in given_workers:
-        workers.append(
-            Worker(
-                worker['id'],
-                worker['name'],
-                worker['tags'],
-                index
-            )
-        )
-        index += 1
-
-    return workers
 
 def get_non_optimised_cost(cost_matrix, solution):
     total = 0
