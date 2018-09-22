@@ -52,7 +52,7 @@ class Constraints():
             for j in range(self.num_tasks):
                 worker_task = self.assignments_ref[i][j]
 
-                worker_id_str = str(worker_task.worker['id'])
+                worker_id_str = str(worker_task.worker.id)
                 task_id_str = str(worker_task.task.task_id)
 
                 # if in must work, sum for task qty for use has to be 1
@@ -72,7 +72,7 @@ class Constraints():
             for task_group in grouped_task:
                 # Each group will have same task, so use first one to get id
                 task_id_str = str(task_group[0].task_id)
-                worker_id_str = str(self.workers[i]['id'])
+                worker_id_str = str(self.workers[i].id)
 
                 if self.worker_task_in_map(worker_id_str, task_id_str, at_least_map):
                     solver.Add(solver.Sum(self.assignments[i][task.index] for task in task_group) >= 1)
@@ -82,7 +82,7 @@ class Constraints():
             This constraint ensures that no worker can work more than a given limit for any number of tasks
         """
         for i in range(self.num_workers):
-            worker_id_str = str(self.workers[i]['id'])
+            worker_id_str = str(self.workers[i].id)
 
             # if worker and task have time limit, add constraints
             if worker_id_str in fatigue_total_map:
@@ -109,9 +109,31 @@ class Constraints():
         """
         for i in range(self.num_workers):
             worker = self.workers[i]
-            worker_id_str = str(worker['id'])
+            worker_id_str = str(worker.index)
             if worker_id_str in overall_map:
                 limit = overall_map[worker_id_str]['limit']
                 solver.Add(
                     solver.Sum(self.assignments[i][j] * utils.get_task_duration(self.assignments_ref[i][j].task)
                         for j in range(self.num_tasks)) <= limit)
+
+
+    def add_overall_consecutive_total_fatigue_time(self, solver, overall_consecutive_map):
+        # Note: consecutive_map grouped by limit (15min increments) to reduce duplicate calculations
+
+        for limit_str, workers in overall_consecutive_map:
+            limit = int(limit_str)
+            # split tasks into ones that have duration over limit
+            tasks_below_limit, tasks_over_limit = utils.split_task_by_duration_limit(self.tasks, limit)
+
+            # Add constraints for each worker for limit
+            for worker_id in workers:
+                worker_index = utils.findWorkerById(worker_id, self.workers).index
+                # Add cannot constraint to tasks_over_limit
+                [solver.Add(self.assignments[worker_index][t.index] == 0) for t in tasks_over_limit]
+
+                # For tasks lower, find all possible consecutive paths greater than limit
+                consecutive_paths = utils.find_all_consecutive_paths(tasks_below_limit, limit)
+
+                # Add constraint so that all tasks in a path cannot be assigned to worker
+                for path in consecutive_paths:
+                    [solver.Add(solver.Sum(self.assignments[worker_index][t.index]) < len(path)) for t in path]
