@@ -106,6 +106,7 @@ class Constraints():
     def add_overall_total_fatigue_time(self, solver, overall_map):
         """
             This constraint ensures workers work below a given limit overall for all their allocated tasks
+            overall_map : { [worker_id] : { limit : number } }
         """
         for i in range(self.num_workers):
             worker = self.workers[i]
@@ -120,6 +121,7 @@ class Constraints():
     def add_overall_consecutive_total_fatigue_time(self, solver, overall_consecutive_map):
         """
             This constraint ensures that workers can not consecutively work more than limit given in overall_consecutive_map
+            overall_consecutive_map : { [limit] : worker_ids[] }
         """
         # Note: consecutive_map grouped by limit (15min increments) to reduce duplicate calculations
 
@@ -144,7 +146,8 @@ class Constraints():
 
     def add_unavailability(self, solver, unavailability_map):
         """
-            This map ensures that workers cannot work scheduled tasks within given time spans
+            This constraint ensures that workers cannot work scheduled tasks within given time spans
+            unavailability_map : { [worker_id]: { range: { start_time, end_time } } }
         """
         for worker in self.workers:
             if str(worker.id) in unavailability_map:
@@ -154,3 +157,34 @@ class Constraints():
                 for task in tasks_in_range:
                     solver.Add(self.assignments[worker.index][task.index] == 0)
 
+
+    def add_buddy(self, solver, buddy_map):
+        """
+            This constraint ensures groups of workers work together on tasks.
+            buddy_map : { [task_id] : worker_id[] }
+        """
+
+        for task in self.tasks:
+            if str(task.task_id) in buddy_map:
+                worker_buddies = buddy_map[str(task.task_id)]
+                worker_buddy_indexes = [utils.findWorkerById(worker_id, self.workers).index for worker_id in worker_buddies]
+
+                num_of_workers = len(worker_buddy_indexes)
+
+                if num_of_workers > 1:
+                    for index, i in enumerate(worker_buddy_indexes):
+                        if index < num_of_workers - 1:
+                            solver.Add(self.assignments[i][task.index] == self.assignments[worker_buddy_indexes[index + 1]][task.index])
+
+    def add_nemesis(self, solver, nemesis_map):
+        """
+            This constraint ensures groups of workers can never work together in given tasks.
+            nemesis_map : { [task_id] : worker_id[] }
+        """
+
+        for task in self.tasks:
+            if str(task.task_id) in nemesis_map:
+                worker_nemesis = nemesis_map[str(task.task_id)]
+                worker_nemesis_indexes = [utils.findWorkerById(worker_id, self.workers).index for worker_id in worker_nemesis]
+
+                solver.Add(solver.Sum(self.assignments[i][task.index] for i in worker_nemesis_indexes) <= 1)

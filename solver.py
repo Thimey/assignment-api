@@ -100,6 +100,14 @@ def solver(data):
     if 'unavailable' in extra_constraints:
         constraints.add_unavailability(solver, extra_constraints['unavailable'])
 
+    # add buddy constraints
+    if 'buddy' in extra_constraints:
+        constraints.add_buddy(solver, extra_constraints['buddy'])
+
+    # add nemesis constraints
+    if 'nemesis' in extra_constraints:
+        constraints.add_nemesis(solver, extra_constraints['nemesis'])
+
     # works must be assigned to at least n tasks (this could change later per worker)
     # [solver.Add(solver.Sum(assignments[i][j] for j in range(num_tasks)) >= 3) for i in range(num_workers)]
 
