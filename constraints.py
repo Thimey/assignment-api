@@ -125,8 +125,11 @@ class Constraints():
         """
         # Note: consecutive_map grouped by limit (15min increments) to reduce duplicate calculations
 
-        for limit_str, workers in overall_consecutive_map.items():
+        for limit_str, limit_info in overall_consecutive_map.items():
             limit = int(limit_str)
+            break_time = limit_info['breakTime']
+            workers = limit_info['workers']
+
             # split tasks into ones that have duration over limit
             tasks_below_limit, tasks_over_limit = utils.split_task_by_duration_limit(self.tasks, limit)
 
@@ -141,7 +144,18 @@ class Constraints():
 
                 # Add constraint so that all tasks in a path cannot be assigned to worker
                 for path in consecutive_paths:
-                    solver.Add(solver.Sum(self.assignments[worker_index][t.index] for t in path) < len(path))
+                    solver.Add(solver.Sum(self.assignments[worker_index][t.index] for t in path.path_tasks) < len(path.path_tasks))
+
+                    # for any path that is equal to the limit, ensure that break before next task is >= limit
+                    if path.total_time == limit:
+                        tasks_start_within_break_time_limit = utils.get_tasks_within_break_time_limit(
+                            break_time,
+                            path,
+                            self.tasks
+                        )
+
+                        for task in tasks_start_within_break_time_limit:
+                            solver.Add(self.assignments[worker_index][task.index] == 0)
 
 
     def add_unavailability(self, solver, unavailability_map):

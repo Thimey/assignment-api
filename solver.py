@@ -116,12 +116,15 @@ def solver(data):
 
     # Want to sort the decision variables by least cost to the solution
 
-    assignment_ref_copy = copy.deepcopy(assignments_ref)
-    assignment_ref_copy_flat = [assignment_ref_copy[i][j] for i in range(num_workers) for j in range(num_tasks)]
-    # Sort by least cost
-    assignment_ref_copy_flat.sort(key=lambda wrk_tsk: cost_matrix[str(wrk_tsk.worker.id)][wrk_tsk.task.id])
-    # map to assignment vars
-    assignments_flat = [assignments[ref.worker.index][ref.task.index] for ref in assignment_ref_copy_flat]
+    if solver_option != 'noOptimisation':
+        assignment_ref_copy = copy.deepcopy(assignments_ref)
+        assignment_ref_copy_flat = [assignment_ref_copy[i][j] for i in range(num_workers) for j in range(num_tasks)]
+        # Sort by least cost
+        assignment_ref_copy_flat.sort(key=lambda wrk_tsk: cost_matrix[str(wrk_tsk.worker.id)][wrk_tsk.task.id])
+        # map to assignment vars
+        assignments_flat = [assignments[ref.worker.index][ref.task.index] for ref in assignment_ref_copy_flat]
+    else:
+        assignments_flat = [assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]
 
     db = solver.Phase(
         assignments_flat,
@@ -130,8 +133,8 @@ def solver(data):
     )
 
     # Create solution collector depending on solver option requested
-    if solver_option != 'noOptimisation':
-        collector = solver.BestValueSolutionCollector(False)
+    if (solver_option == 'optimise' and time_limit != None) or solver_option == 'optimal':
+        collector = solver.BestValueSolutionCollector(False) # False finds minimum as best solution
     else:
         collector = solver.FirstSolutionCollector()
 
@@ -176,7 +179,10 @@ def solver(data):
                     else:
                         solution_by_worker[worker_task.worker.id] = [worker_task.task.id]
 
-        objective_value = get_non_optimised_cost(cost_matrix, solution_by_task) if solver_option == 'noOptimisation' else collector.ObjectiveValue(0)
+        if solver_option == 'optimal' or (solver_option == 'optimise' and time_limit != None):
+            objective_value = collector.ObjectiveValue(0)
+        else:
+            objective_value = get_non_optimised_cost(cost_matrix, solution_by_task)
 
         return {
             "status": status,

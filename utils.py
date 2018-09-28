@@ -111,6 +111,7 @@ def group_tasks(tasks, predicate):
     # remove any groups with only one task
     return [g for g in grouped_tasks if len(g) > 1]
 
+# get tasks that last consecutive limit start within breaktime
 
 def get_tasks_in_range(tasks, range):
     tasks_in_range = []
@@ -228,9 +229,8 @@ def consecutive_tasks_until_limit(initial_task, tasks_after, limit):
 
         remaining_tasks = new_remaining_tasks[:]
 
-    return [path.path_tasks for path in completed_paths]
-
-
+    # return [path.path_tasks for path in completed_paths]
+    return completed_paths
 
 
 def find_all_consecutive_paths(tasks, limit):
@@ -250,6 +250,22 @@ def find_all_consecutive_paths(tasks, limit):
 
     return task_paths
 
+def get_tasks_within_break_time_limit(break_time, path, tasks):
+    path_tasks = path.path_tasks[:]
+    path_tasks.sort(key= lambda t: time_in_mins(t.end_time))
+    path_end_time = path_tasks[0].end_time
+    path_end_time_mins = time_in_mins(path_end_time)
+
+    tasks_within_break_time = []
+
+    for task in tasks:
+        task_start_in_mins = time_in_mins(task.start_time)
+        difference_mins = task_start_in_mins - path_end_time_mins
+
+        if difference_mins > 0 and difference_mins < break_time:
+            tasks_within_break_time.append(task)
+
+    return tasks_within_break_time
 
 if __name__ == '__main__':
     Task = namedtuple('Task', ['id', 'start_time', 'end_time'])
