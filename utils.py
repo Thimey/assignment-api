@@ -150,10 +150,10 @@ def map_to_indicies(task_groups):
 def map_to_id(task_groups):
     return [[t.id for t in tg] for tg in task_groups]
 
-def findSchTaskByTaskId(id, seq):
+def find_sch_task_by_task_id(id, seq):
     return find(lambda t: t.task_id == id, seq)
 
-def findWorkerById(id, seq):
+def find_worker_by_id(id, seq):
     return find(lambda w: int(w.id) == int(id), seq)
 
 def find(f, seq):
