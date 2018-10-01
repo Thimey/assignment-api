@@ -63,7 +63,7 @@ def solver(data):
             total_cost == solver.Sum(
                 [assignment_costs[i][j] * assignments[i][j] for i in range(num_workers) for j in range(num_tasks)]))
 
-        objective = solver.Minimize(total_cost, 1)
+        objective = solver.Minimize(total_cost, 5)
 
     # constraints
 
@@ -141,6 +141,10 @@ def solver(data):
     # Add decision vars to collector
     collector.Add(assignments_flat)
 
+    monitor = pywrapcp.SearchMonitor(solver)
+
+    monitor.RestartSearch()
+
     # Set time limit if given
     if solver_option == 'optimise' and time_limit != None:
         print('time_limit', time_limit)
@@ -149,10 +153,10 @@ def solver(data):
     # Solve appropriately
     if solver_option == 'optimal':
         collector.AddObjective(total_cost)
-        status = solver.Solve(db, [objective, collector])
+        status = solver.Solve(db, [objective, collector, monitor])
     elif solver_option == 'optimise' and time_limit != None:
         collector.AddObjective(total_cost)
-        status = solver.Solve(db, [objective, collector, solver_time_limit])
+        status = solver.Solve(db, [objective, collector, solver_time_limit, monitor])
     else:
         status = solver.Solve(db, [collector])
 

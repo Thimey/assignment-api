@@ -175,8 +175,9 @@ class Constraints():
         """
 
         for buddy_data in buddies:
-            worker_buddies = buddy_data['workers']
-            worker_buddy_indexes = [utils.find_worker_by_id(worker_id, self.workers).index for worker_id in worker_buddies]
+            worker_buddies_ids = buddy_data['workers']
+            worker_buddies = [utils.find_worker_by_id(worker_id, self.workers) for worker_id in worker_buddies_ids]
+            worker_buddy_indexes = [worker.index for worker in worker_buddies if worker != None]
             num_of_workers = len(worker_buddy_indexes)
             tasks_to_buddy_on = buddy_data['tasks']
 
@@ -196,8 +197,9 @@ class Constraints():
         """
 
         for nemesis_data in nemesis:
-            worker_nemesis = nemesis_data['workers']
-            worker_nemesis_indexes = [utils.find_worker_by_id(worker_id, self.workers).index for worker_id in worker_nemesis]
+            worker_nemesis_ids = nemesis_data['workers']
+            worker_nemesis = [utils.find_worker_by_id(worker_id, self.workers) for worker_id in worker_nemesis_ids]
+            worker_nemesis_indexes = [worker.index for worker in worker_nemesis if worker != None]
             tasks_to_nemesis_on = nemesis_data['tasks']
 
             num_of_workers = len(worker_nemesis_indexes)
