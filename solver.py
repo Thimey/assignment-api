@@ -80,6 +80,10 @@ def solver(data):
     cannot_map = extra_constraints['cannotWork'] if 'cannotWork' in extra_constraints else None
     constraints.must_cannot_work(solver, must_map, cannot_map)
 
+    # add must combined must work
+    if 'combinedMustWork' in extra_constraints:
+        constraints.combined_must_work_all(solver, extra_constraints['combinedMustWork'])
+
     # add at least has to work constraint
     if 'atLeastWork' in extra_constraints:
         constraints.add_at_least_work_task(solver, extra_constraints['atLeastWork'])

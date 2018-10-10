@@ -62,6 +62,30 @@ class Constraints():
                 elif self.worker_task_in_map(worker_id_str, task_id_str, cannot_map):
                     solver.Add(self.assignments[i][j] == 0)
 
+    def combined_must_work_all(self, solver, combined_groups):
+        """
+            This constraint ensures that groups of workers must work all tasks (combined)
+            combined_groups : { workers : number[], tasks : number[] }[]
+        """
+
+        for group in combined_groups:
+            worker_ids = group['workers']
+            workers = [utils.find_worker_by_id(worker_id, self.workers) for worker_id in worker_ids]
+            worker_indexes = [w.index for w in workers if w != None]
+            task_ids = group['tasks']
+            for task_id in task_ids:
+                sched_tasks = [t for t in self.tasks if t.task_id == task_id]
+
+                for schd_task in sched_tasks:
+                    solver.Add(
+                        solver.Sum(
+                            self.assignments[i][schd_task.index] for i in worker_indexes
+                        ) == 1
+                    )
+
+
+
+
     def add_at_least_work_task(self, solver, at_least_map):
         """
             This constraint ensures that workers work at least on task in the given map
